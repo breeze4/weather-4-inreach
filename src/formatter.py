@@ -40,11 +40,10 @@ def validate_message(message: str) -> tuple[bool, str]:
 # ---------------------------------------------------------------------------
 
 _WX_NOW_PROMPT = """\
-You are a weather formatter for satellite text messages limited to {max_len} characters.
+You are a weather formatter for satellite text messages.
 
 Given forecast periods, produce a SINGLE LINE of abbreviated weather.
 Rules:
-- Maximum {max_len} characters total. Count carefully.
 - Use abbreviated day names: Sun, Mon, Tue, Wed, Thu, Fri, Sat.
   Use "Td" for today, "Tn" for tonight. Append "N" for night periods (e.g. WedN).
 - Use short condition codes: Clr, PCldy, MCldy, Cldy, RnShw, ChRn, Thnd, Snow, Fog, etc.
@@ -63,13 +62,13 @@ Forecast periods:
 Output ONLY the formatted line, nothing else."""
 
 _WX_WEEK_PROMPT = """\
-You are a weather formatter for satellite text messages limited to {max_len} characters.
+You are a weather formatter for satellite text messages.
 
-Given forecast periods for the week, pack as many day/night entries as fit within {max_len} characters. Start from the first period and stop adding when the next entry would exceed the limit. Truncate from the end.
+Given forecast periods for the week, format ALL periods into a single line.
+The output will be truncated by the app if needed — just format everything.
 
 Rules:
-- Maximum {max_len} characters total. Count carefully.
-- Use abbreviated day names: Sun, Mon, Tue, Wed, Thu, Fri, Sat, Fr.
+- Use abbreviated day names: Sun, Mon, Tue, Wed, Thu, Fri, Sat.
   Append "N" for night periods. Use "Td"/"Tn" for today/tonight.
 - Use short condition codes: Clr, PCldy, MCldy, Cldy, RnShw, ChRn, Thnd, Snow, Fog, etc.
 - Include precip % ONLY when > 0%.
@@ -77,20 +76,13 @@ Rules:
 - No labels, no colons, no extra punctuation. Space-separated tokens.
 
 Examples of good output:
-Sun 74 TnClr57 Mon 80 Clr59 Tue 81 Clr60 Wed 85 Clr62 Thu 82 Clr59 Fr 80
-Td 65 Tn48 Mon 72 Clr55 Tue 78 PCldy60 Wed 80 Clr58 Thu 75 MCldy52
+Sun 74 SunN Clr 57 Mon 80 MonN Clr 59 Tue 81 TueN Clr 60 Wed 85 WedN Clr 62
+Td 65 Tn 48 Mon 72 MonN Clr 55 Tue PCldy 78 TueN 60 Wed 80 WedN Clr 58
 
 Forecast periods:
 {periods_text}
 
 Output ONLY the formatted line, nothing else."""
-
-_RETRY_SUFFIX = """
-
-Your previous output was:
-{previous}
-
-That was {prev_len} chars, max is {max_len}. Remove periods from the END until it fits. Do NOT compress — just drop the last few day/night entries."""
 
 
 def _build_periods_text(periods: list) -> str:
@@ -142,35 +134,28 @@ def format_forecast(command: str, periods: list) -> str:
 
     periods_text = _build_periods_text(periods)
 
-    prompt = template.format(max_len=MAX_LEN, periods_text=periods_text)
+    prompt = template.format(periods_text=periods_text)
 
-    previous_output = None
+    last_output = None
+    last_reason = None
     for attempt in range(MAX_ATTEMPTS):
-        if previous_output is not None:
-            full_prompt = prompt + _RETRY_SUFFIX.format(
-                previous=previous_output,
-                prev_len=len(previous_output),
-                max_len=MAX_LEN,
-            )
-        else:
-            full_prompt = prompt
-
         response = client.models.generate_content(
-            model=GEMINI_MODEL, contents=full_prompt
+            model=GEMINI_MODEL, contents=prompt
         )
         message = re.sub(r"[^\x20-\x7E]", "", response.text.strip())
 
-        # Hard truncate if over limit
+        # App-side truncation to fit the 160-char limit
         message = _truncate_to_fit(message)
 
         valid, reason = validate_message(message)
         if valid:
             return message
 
-        previous_output = message
+        last_output = message
+        last_reason = reason
 
     raise FormatterError(
         f"Failed to get valid forecast after {MAX_ATTEMPTS} attempts. "
-        f"Last output ({len(previous_output)} chars): {previous_output!r}. "
-        f"Reason: {reason}"
+        f"Last output ({len(last_output)} chars): {last_output!r}. "
+        f"Reason: {last_reason}"
     )
