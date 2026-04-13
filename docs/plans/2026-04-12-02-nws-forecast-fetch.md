@@ -73,6 +73,6 @@ GET https://api.weather.gov/gridpoints/SEW/124,69/forecast
     ]
 ```
 
-NWS requires a `User-Agent` header with contact info — use `(weather-bot, your_email@gmail.com)`.
+NWS requires a `User-Agent` header with contact info — use `(weather-bot, <GMAIL_USER>)`.
 
 The `probabilityOfPrecipitation.value` may be `null` when there's no precip expected — treat null as 0%.

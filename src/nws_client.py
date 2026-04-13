@@ -1,12 +1,16 @@
 """NWS (National Weather Service) API client for fetching forecasts."""
 
+import os
 from dataclasses import dataclass
 
 import requests
 
 NWS_BASE = "https://api.weather.gov"
-USER_AGENT = "(weather-bot, your_email@gmail.com)"
 TIMEOUT = 15  # seconds
+
+
+def _user_agent() -> str:
+    return f"(weather-bot, {os.environ['GMAIL_USER']})"
 
 
 class NWSError(Exception):
@@ -23,7 +27,7 @@ class ForecastPeriod:
 
 def _get(url: str) -> dict:
     """Make a GET request to the NWS API and return parsed JSON."""
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/geo+json"}
+    headers = {"User-Agent": _user_agent(), "Accept": "application/geo+json"}
     try:
         resp = requests.get(url, headers=headers, timeout=TIMEOUT)
     except requests.RequestException as exc:

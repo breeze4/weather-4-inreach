@@ -27,7 +27,7 @@ AFK
 
 ## Acceptance criteria
 
-- [x] Sends formatted forecast as a new email via SMTP to `yourdevice@inreach.garmin.com`
+- [x] Sends formatted forecast as a new email via SMTP to the configured `INREACH_EMAIL`
 - [x] SMTP uses the same Gmail credentials from `.env`
 - [x] Reply email body is just the forecast text, no extra formatting or signatures
 - [x] Main loop polls every 2 minutes, processes all unread matching emails each cycle
