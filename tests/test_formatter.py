@@ -161,6 +161,13 @@ def test_abbreviate_condition_slight_chance_before_chance():
     assert _abbreviate_condition("Slight Chance Snow Showers") == "SnShw"
 
 
+def test_abbreviate_condition_suffix_stripping():
+    """NWS sometimes puts probability as a suffix (e.g. 'Light Rain Likely')."""
+    assert _abbreviate_condition("Light Rain Likely") == "LRn"
+    assert _abbreviate_condition("Rain Showers Likely") == "RnShw"
+    assert _abbreviate_condition("Snow Likely") == "Snw"
+
+
 def test_abbreviate_condition_then_compound():
     assert _abbreviate_condition("Rain Showers then Partly Cloudy") == "RnShw"
     assert _abbreviate_condition("Mostly Cloudy then Chance Rain") == "MCldy"

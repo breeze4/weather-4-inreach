@@ -135,11 +135,13 @@ def _abbreviate_day(name: str) -> str:
 
 
 def _strip_prefix(forecast: str) -> str:
-    """Strip probability/coverage prefixes from a forecast string."""
+    """Strip probability/coverage prefixes and suffixes from a forecast string."""
     lower = forecast.lower()
     for prefix in _PREFIXES:
         if lower.startswith(prefix + " "):
             return forecast[len(prefix) + 1:]
+        if lower.endswith(" " + prefix):
+            return forecast[:-(len(prefix) + 1)]
     return forecast
 
 
