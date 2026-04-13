@@ -9,13 +9,13 @@ Replaces the defunct wx2inreach.com service.
 1. InReach sends a message to a dedicated Gmail address
 2. Bot polls Gmail via IMAP, parses the command and GPS coordinates
 3. Fetches forecast from the NWS API for those coordinates
-4. Gemini Flash compresses the forecast into a ≤160 character satellite message
+4. Formatter compresses the forecast into a ≤160 character satellite message (deterministic abbreviation by default; optional Gemini path via `USE_GEMINI_FORMATTER=true`)
 5. Replies via the Garmin MapShare reply page (the only way to deliver messages back to InReach)
 
 ## Commands
 
-- **`wx now`** — 24-hour forecast: today, tonight, tomorrow, tomorrow night with temps, precip %, and conditions
-- **`wx week`** — 7-day forecast: as many day/night periods as fit in 160 chars, truncated from the end
+- **`wx now`** — Next 4 periods (today, tonight, tomorrow, tomorrow night) with temps, precip %, and conditions
+- **`wx week`** — 7-day forecast: all periods formatted, truncated at the last complete token that fits in 160 chars
 
 ## Example output
 
@@ -49,7 +49,8 @@ python -m src.main
 |---|---|
 | `GMAIL_USER` | Gmail address the bot polls |
 | `GMAIL_APP_PASSWORD` | Gmail App Password for IMAP/SMTP access |
-| `GEMINI_API_KEY` | Google Gemini API key |
+| `GEMINI_API_KEY` | Google Gemini API key (only needed if `USE_GEMINI_FORMATTER=true`) |
+| `USE_GEMINI_FORMATTER` | Set to `true` to use Gemini instead of the deterministic formatter (default: off) |
 | `INREACH_SUBJECT` | Expected email subject (e.g. `inReach message from Your Name`) |
 
 ## Deploy to a server
@@ -79,7 +80,7 @@ Returns JSON with `wx_now` and `wx_week` formatted forecasts.
 
 Single long-running Python process with two threads:
 
-- **Main thread**: IMAP poll loop (every 2 min) — parse email, fetch NWS, format via Gemini, reply via Garmin
+- **Main thread**: IMAP poll loop (every 2 min) — parse email, fetch NWS, format forecast, reply via Garmin
 - **Daemon thread**: FastAPI test endpoint on port 8035
 
 NWS failures trigger automatic retries every 2 minutes for up to 20 minutes.

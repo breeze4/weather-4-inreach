@@ -12,5 +12,5 @@
 ## Architecture
 
 Single long-running process on beebaby with two responsibilities:
-- IMAP poll loop (every 2 min) for InReach emails → NWS → Gemini → SMTP reply
+- IMAP poll loop (every 2 min) for InReach emails → NWS → formatter (deterministic by default, Gemini optional) → SMTP reply
 - FastAPI test endpoint on port 8035 (runs in a daemon thread)
