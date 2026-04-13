@@ -1,0 +1,14 @@
+[Unit]
+Description=Weather Bot — InReach forecast service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/dev/weather-bot
+ExecStart=%h/dev/weather-bot/venv/bin/python -m src.main
+EnvironmentFile=%h/dev/weather-bot/.env
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
