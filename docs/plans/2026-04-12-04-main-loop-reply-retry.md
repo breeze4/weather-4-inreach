@@ -27,7 +27,7 @@ AFK
 
 ## Acceptance criteria
 
-- [x] Sends formatted forecast as a new email via SMTP to the configured `INREACH_EMAIL`
+- [x] Sends formatted forecast as a new email via SMTP to the configured `INREACH_SUBJECT`
 - [x] SMTP uses the same Gmail credentials from `.env`
 - [x] Reply email body is just the forecast text, no extra formatting or signatures
 - [x] Main loop polls every 2 minutes, processes all unread matching emails each cycle
@@ -46,7 +46,7 @@ AFK
 - `src/retry_manager.py` — retry queue, attempt tracking, expiry logic
 - `src/main.py` — main loop, orchestration, logging
 - `tests/test_retry_manager.py` — retry state machine unit tests
-- `.env.example` — add `INREACH_EMAIL` placeholder
+- `.env.example` — add `INREACH_SUBJECT` placeholder
 
 ## Must not touch
 
@@ -65,7 +65,7 @@ None — first of its kind. The deploy-to-beebaby skill describes the systemd se
 
 ## Tasks
 
-- [x] Add `INREACH_EMAIL` to `.env.example`
+- [x] Add `INREACH_SUBJECT` to `.env.example`
 - [x] Implement `reply_sender.py`: SMTP connect using Gmail creds, send plain-text email to InReach address
 - [x] Implement `retry_manager.py`: dataclass for pending retries (lat, lon, command, attempts, max_attempts=10), enqueue/dequeue/expire methods
 - [x] Write unit tests for retry manager: enqueue, increment attempts, expiry at 10, concurrent retries for different requests

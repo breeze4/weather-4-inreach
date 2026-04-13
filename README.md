@@ -50,7 +50,7 @@ python -m src.main
 | `GMAIL_USER` | Gmail address the bot polls |
 | `GMAIL_APP_PASSWORD` | Gmail App Password for IMAP/SMTP access |
 | `GEMINI_API_KEY` | Google Gemini API key |
-| `INREACH_EMAIL` | InReach device email (e.g. `yourdevice@inreach.garmin.com`) |
+| `INREACH_SUBJECT` | Expected email subject (e.g. `inReach message from Your Name`) |
 
 ## Deploy to a server
 

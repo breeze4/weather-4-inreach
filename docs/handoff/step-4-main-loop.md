@@ -9,7 +9,7 @@
 
 ## Files modified
 
-- `.env.example` — added `GEMINI_API_KEY` and `INREACH_EMAIL`
+- `.env.example` — added `GEMINI_API_KEY` and `INREACH_SUBJECT`
 
 ## Complete `.env.example` contents
 
@@ -17,7 +17,7 @@
 GMAIL_USER=your_email@gmail.com
 GMAIL_APP_PASSWORD=your_app_password_here
 GEMINI_API_KEY=your_gemini_api_key
-INREACH_EMAIL=yourdevice@inreach.garmin.com
+INREACH_SUBJECT=inReach message from Your Name
 ```
 
 ## Key decisions

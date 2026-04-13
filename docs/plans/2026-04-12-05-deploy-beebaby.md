@@ -58,7 +58,7 @@ None
 
 - [ ] Create `requirements.txt` with dependencies: `google-generativeai` (or equivalent Gemini client), `python-dotenv`
 - [ ] Create `.gitignore`: exclude `.env`, `__pycache__`, `venv`, `*.pyc`
-- [ ] Create `.env.example` with all required vars: `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `GEMINI_API_KEY`, `INREACH_EMAIL`
+- [ ] Create `.env.example` with all required vars: `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `GEMINI_API_KEY`, `INREACH_SUBJECT`
 - [ ] Create `deploy/weather-bot.service` following beebaby pattern: `ExecStart` runs Python with `src/main.py`, `EnvironmentFile` points to `.env`, `Restart=always`
 - [ ] Create `deploy/setup.sh`: mkdir app dir, create venv, enable linger
 - [ ] Create `deploy/deploy.sh`: rsync code, install deps in venv, copy service file, daemon-reload, restart

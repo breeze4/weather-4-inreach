@@ -15,7 +15,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-EXPECTED_SUBJECT = "inReach message from Jane Doe"
+EXPECTED_SUBJECT = os.environ.get("INREACH_SUBJECT", "inReach message")
 POLL_INTERVAL_SECONDS = 120
 
 
