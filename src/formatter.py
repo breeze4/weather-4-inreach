@@ -1,9 +1,7 @@
-"""Gemini-based forecast formatter with validation and retry."""
+"""Forecast formatter with deterministic and Gemini-based paths."""
 
 import os
 import re
-
-from google import genai
 
 GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
 MAX_LEN = 160
@@ -33,6 +31,162 @@ def validate_message(message: str) -> tuple[bool, str]:
     if not DAY_PATTERN.search(message):
         return False, "No day abbreviation found"
     return True, ""
+
+
+# ---------------------------------------------------------------------------
+# Deterministic formatter
+# ---------------------------------------------------------------------------
+
+DAY_MAP = {
+    "today": "Td",
+    "this afternoon": "Td",
+    "tonight": "Tn",
+    "sunday": "Sun",
+    "monday": "Mon",
+    "tuesday": "Tue",
+    "wednesday": "Wed",
+    "thursday": "Thu",
+    "friday": "Fri",
+    "saturday": "Sat",
+    "sunday night": "SunN",
+    "monday night": "MonN",
+    "tuesday night": "TueN",
+    "wednesday night": "WedN",
+    "thursday night": "ThuN",
+    "friday night": "FriN",
+    "saturday night": "SatN",
+}
+
+CONDITION_MAP = {
+    # Sky
+    "sunny": "Sun",
+    "mostly sunny": "MSun",
+    "partly sunny": "PSun",
+    "clear": "Clr",
+    "mostly clear": "MClr",
+    "partly cloudy": "PCldy",
+    "mostly cloudy": "MCldy",
+    "cloudy": "Cldy",
+    # Rain
+    "rain": "Rn",
+    "light rain": "LRn",
+    "heavy rain": "HRn",
+    "showers": "Shw",
+    "rain showers": "RnShw",
+    "drizzle": "Dzl",
+    # Snow/ice
+    "snow": "Snw",
+    "light snow": "LSnw",
+    "heavy snow": "HSnw",
+    "snow showers": "SnShw",
+    "flurries": "Flr",
+    "sleet": "Slt",
+    "wintry mix": "WMx",
+    "rain and snow": "RnSn",
+    "rain and snow showers": "RnSnShw",
+    # Freezing
+    "freezing rain": "FzRn",
+    "freezing drizzle": "FzDzl",
+    "freezing fog": "FzFg",
+    "freezing spray": "FzSp",
+    # Thunderstorms
+    "thunderstorms": "Tst",
+    "showers and thunderstorms": "ShTst",
+    "t-storms": "Tst",
+    "severe t-storms": "SvTst",
+    # Visibility
+    "fog": "Fog",
+    "dense fog": "DFog",
+    "ice fog": "IFg",
+    "haze": "Hze",
+    "smoke": "Smk",
+    "blowing snow": "BlSn",
+    "blowing dust": "BlDt",
+    "frost": "Frs",
+    # Wind/temp
+    "breezy": "Brz",
+    "windy": "Wnd",
+    "very windy": "VWnd",
+    "blustery": "Bls",
+    "hot": "Hot",
+    "cold": "Cld",
+    "damaging winds": "DmgW",
+}
+
+_PREFIXES = sorted(
+    [
+        "slight chance",
+        "chance",
+        "likely",
+        "isolated",
+        "scattered",
+        "numerous",
+        "areas",
+        "patchy",
+    ],
+    key=len,
+    reverse=True,
+)
+
+
+def _abbreviate_day(name: str) -> str:
+    """Map an NWS period name to a short day code."""
+    return DAY_MAP.get(name.lower(), name)
+
+
+def _strip_prefix(forecast: str) -> str:
+    """Strip probability/coverage prefixes from a forecast string."""
+    lower = forecast.lower()
+    for prefix in _PREFIXES:
+        if lower.startswith(prefix + " "):
+            return forecast[len(prefix) + 1:]
+    return forecast
+
+
+def _abbreviate_condition(forecast: str) -> str:
+    """Abbreviate an NWS short_forecast string to a condition code."""
+    # Handle compound "then" forecasts — take first part only
+    if " then " in forecast.lower():
+        forecast = forecast[:forecast.lower().index(" then ")]
+
+    # Strip probability prefix
+    forecast = _strip_prefix(forecast)
+
+    # Lookup in condition map (case-insensitive)
+    key = forecast.strip().lower()
+    if key in CONDITION_MAP:
+        return CONDITION_MAP[key]
+
+    # Unknown fallback
+    words = forecast.strip().split()
+    if len(words) > 1:
+        return "".join(w[0].upper() for w in words)
+    else:
+        return forecast.strip()[:3].capitalize()
+
+
+def _format_period(period) -> str:
+    """Format a single ForecastPeriod into space-separated tokens.
+
+    Format: DayCode CondCode Precip% Temp
+    """
+    day = _abbreviate_day(period.name)
+    cond = _abbreviate_condition(period.short_forecast)
+    parts = [day, cond]
+    if period.precip_chance > 0:
+        parts.append(f"{period.precip_chance}%")
+    parts.append(str(period.temperature))
+    return " ".join(parts)
+
+
+def _format_deterministic(command: str, periods: list) -> str:
+    """Format forecast periods deterministically without LLM calls."""
+    if command == "wx now":
+        periods = periods[:4]
+
+    tokens = [_format_period(p) for p in periods]
+    message = " ".join(tokens)
+    return _truncate_to_fit(message)
 
 
 # ---------------------------------------------------------------------------
@@ -106,13 +260,19 @@ def _truncate_to_fit(message: str) -> str:
     return cut.rstrip()
 
 
-def _get_client():
+def _get_client(genai=None):
     """Configure and return the Gemini client."""
+    if genai is None:
+        from google import genai as _genai
+        genai = _genai
     return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 
 def format_forecast(command: str, periods: list) -> str:
-    """Format forecast periods into a ≤160-char message using Gemini.
+    """Format forecast periods into a ≤160-char message.
+
+    Uses deterministic formatting by default. Set USE_GEMINI_FORMATTER=true
+    to use the Gemini-based formatter instead.
 
     Args:
         command: "wx now" or "wx week"
@@ -122,9 +282,14 @@ def format_forecast(command: str, periods: list) -> str:
         Formatted forecast string ≤160 characters.
 
     Raises:
-        FormatterError: if all attempts fail validation.
+        FormatterError: if all attempts fail validation (Gemini path only).
     """
-    client = _get_client()
+    if os.environ.get("USE_GEMINI_FORMATTER") != "true":
+        return _format_deterministic(command, periods)
+
+    from google import genai  # noqa: F811
+
+    client = _get_client(genai)
 
     if command == "wx now":
         template = _WX_NOW_PROMPT
