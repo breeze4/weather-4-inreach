@@ -3,8 +3,9 @@
 import os
 import re
 
-import google.generativeai as genai
+from google import genai
 
+GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
 MAX_LEN = 160
 MAX_ATTEMPTS = 3
 
@@ -113,10 +114,9 @@ def _truncate_to_fit(message: str) -> str:
     return cut.rstrip()
 
 
-def _get_model():
-    """Configure and return the Gemini generative model."""
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    return genai.GenerativeModel("gemini-2.0-flash")
+def _get_client():
+    """Configure and return the Gemini client."""
+    return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 
 def format_forecast(command: str, periods: list) -> str:
@@ -132,7 +132,7 @@ def format_forecast(command: str, periods: list) -> str:
     Raises:
         FormatterError: if all attempts fail validation.
     """
-    model = _get_model()
+    client = _get_client()
 
     if command == "wx now":
         template = _WX_NOW_PROMPT
@@ -155,7 +155,9 @@ def format_forecast(command: str, periods: list) -> str:
         else:
             full_prompt = prompt
 
-        response = model.generate_content(full_prompt)
+        response = client.models.generate_content(
+            model=GEMINI_MODEL, contents=full_prompt
+        )
         message = re.sub(r"[^\x20-\x7E]", "", response.text.strip())
 
         # Hard truncate if over limit
