@@ -35,7 +35,10 @@ def fetch_new_requests(conn: imaplib.IMAP4_SSL) -> Generator[InReachRequest, Non
     if not data or not data[0]:
         return
 
-    for uid in data[0].split():
+    uids = data[0].split()
+    logger.info("Found %d unread message(s)", len(uids))
+
+    for uid in uids:
         _status, msg_data = conn.fetch(uid, "(RFC822)")
         if not msg_data or not msg_data[0]:
             continue
@@ -44,14 +47,14 @@ def fetch_new_requests(conn: imaplib.IMAP4_SSL) -> Generator[InReachRequest, Non
         msg = email.message_from_bytes(raw)
 
         subject = msg.get("Subject", "")
-        if subject != EXPECTED_SUBJECT:
-            # Not an inReach email — ignore but still mark as read
+        # Garmin sends "inReach message from <Sender Name>" — match prefix.
+        if not subject.startswith(EXPECTED_SUBJECT):
+            logger.info("Skipping non-inReach email (subject=%r)", subject)
             conn.store(uid, "+FLAGS", "\\Seen")
             continue
 
         message_id = msg.get("Message-ID", uid.decode())
 
-        # Get plain-text body
         body = ""
         if msg.is_multipart():
             for part in msg.walk():
@@ -62,12 +65,16 @@ def fetch_new_requests(conn: imaplib.IMAP4_SSL) -> Generator[InReachRequest, Non
             body = msg.get_payload(decode=True).decode("utf-8", errors="replace")
 
         result = parse_body(body, message_id)
-
-        # Mark as read regardless of whether we got a valid command
         conn.store(uid, "+FLAGS", "\\Seen")
 
-        if result is not None:
-            yield result
+        if result is None:
+            logger.warning(
+                "inReach email did not parse (subject=%r, body[:200]=%r)",
+                subject, body[:200],
+            )
+            continue
+
+        yield result
 
 
 def poll_loop() -> Generator[InReachRequest, None, None]:
